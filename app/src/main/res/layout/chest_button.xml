@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ImageButton
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:contentDescription="@string/app_name"
+    android:id="@+id/chest_button"
+    android:layout_width="@dimen/chest_button_width"
+    android:layout_height="@dimen/chest_button_height"
+    android:padding="0dp"
+    android:background="@android:color/transparent"
+    android:scaleType="fitStart">
+
+</ImageButton>
