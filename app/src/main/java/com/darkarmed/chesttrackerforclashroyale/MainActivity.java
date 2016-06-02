@@ -42,7 +42,9 @@ public class MainActivity extends AppCompatActivity {
         mToolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(mToolbar);
         mToolbarTitle = (TextView) findViewById(R.id.toolbar_title);
-        setTitle(getString(R.string.title));
+
+//        setTitle(getString(R.string.title));
+        setTitle("");
 
         mGridView = (GridView) findViewById(R.id.gridview);
 
@@ -59,6 +61,21 @@ public class MainActivity extends AppCompatActivity {
 
         mAdapter = new GridViewAdapter(this, mChests);
         mGridView.setAdapter(mAdapter);
+
+//        mGridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+//            @Override
+//            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+//                mAdapter.open(position);
+//            }
+//        });
+//
+//        mGridView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+//            @Override
+//            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+//                mAdapter.lock(position);
+//                return false;
+//            }
+//        });
 
         if (mUsers.size() > 1) {
             Spinner mSpinner = (Spinner) findViewById(R.id.users_spinner);
