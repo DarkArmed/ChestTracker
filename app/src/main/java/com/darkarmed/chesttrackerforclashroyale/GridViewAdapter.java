@@ -18,6 +18,7 @@ public class GridViewAdapter extends BaseAdapter {
     private final Context mContext;
     private List<Chest> mChests = new ArrayList<>();
     private String mSequence;
+    private int mLastOpened = 0;
     private final int BUFFER_LENGTH = 12;
     private final int EXTEND_LENGTH = 40;
 
@@ -37,12 +38,83 @@ public class GridViewAdapter extends BaseAdapter {
         notifyDataSetChanged();
     }
 
-    private void extend() {
-        int current_size =mChests.size();
-        for (int i = current_size; i < current_size + EXTEND_LENGTH; ++i) {
-            mChests.add(new Chest(i, mSequence.charAt(i % mSequence.length())));
-        }
+    public void remove(Chest chest) {
+        mChests.remove(chest);
         notifyDataSetChanged();
+    }
+
+    private void extend(Boolean force) {
+        int current_size = mChests.size();
+        int pos = getLastOpened();
+        if (pos + BUFFER_LENGTH >= current_size) {
+            for (int i = current_size; i < current_size + EXTEND_LENGTH; ++i) {
+                mChests.add(new Chest(i, mSequence.charAt(i % mSequence.length())));
+            }
+            notifyDataSetChanged();
+        }
+    }
+
+    public void open(Chest chest) {
+        if (chest.getStatus() != Chest.Status.OPENED) {
+            chest.setStatus(Chest.Status.OPENED);
+            int pos = chest.getIndex();
+            skip(pos - 1);
+            extend(false);
+            notifyDataSetChanged();
+            if (mLastOpened < pos) {
+                mLastOpened = pos;
+            }
+        }
+    }
+
+    public void open(int pos) {
+        this.open(mChests.get(pos));
+    }
+
+    public void open(Chest.Type type) {
+
+    }
+
+    public void skip(int pos) {
+        if (pos >= 0) {
+            Chest chest = mChests.get(pos);
+            if (chest != null && chest.getStatus() == Chest.Status.LOCKED) {
+                chest.setStatus(Chest.Status.SKIPPED);
+                skip(pos - 1);
+            }
+        }
+    }
+
+    public void lock(Chest chest) {
+        if (chest.getStatus() == Chest.Status.OPENED) {
+            Chest nextChest = mChests.get(chest.getIndex() + 1);
+            if (nextChest.getStatus() == Chest.Status.LOCKED) {
+                chest.setStatus(Chest.Status.LOCKED);
+                mLastOpened = restore(chest.getIndex() - 1);
+            } else {
+                chest.setStatus(Chest.Status.SKIPPED);
+            }
+            notifyDataSetChanged();
+        }
+    }
+
+    public void lock(int pos) {
+        this.lock(mChests.get(pos));
+    }
+
+    public int restore(int pos){
+        if (pos >= 0) {
+            Chest chest = mChests.get(pos);
+            if (chest != null && chest.getStatus() == Chest.Status.SKIPPED) {
+                chest.setStatus(Chest.Status.LOCKED);
+                return restore(pos - 1);
+            }
+        }
+        return pos;
+    }
+
+    public int getLastOpened() {
+        return mLastOpened;
     }
 
     @Override
@@ -61,7 +133,7 @@ public class GridViewAdapter extends BaseAdapter {
 
     @Override
     public long getItemId(int pos) {
-        return pos;
+        return mChests.get(pos).getIndex();
     }
 
     @Override
@@ -97,23 +169,14 @@ public class GridViewAdapter extends BaseAdapter {
         imageButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (chest.getStatus() != Chest.Status.OPENED) {
-                    chest.setStatus(Chest.Status.OPENED);
-                    loadImage(imageButton, chest);
-                    if (chest.getIndex() + BUFFER_LENGTH >= mChests.size()) {
-                        extend();
-                    }
-                }
+                open(chest);
             }
         });
 
         imageButton.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                if (chest.getStatus() == Chest.Status.OPENED) {
-                    chest.setStatus(Chest.Status.LOCKED);
-                    loadImage(imageButton, chest);
-                }
+                lock(chest);
                 return false;
             }
         });
