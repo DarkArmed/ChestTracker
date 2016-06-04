@@ -2,6 +2,7 @@ package com.darkarmed.chesttrackerforclashroyale;
 
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -27,8 +28,12 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private Toolbar mToolbar;
     private TextView mToolbarTitle;
-    private GridView mGridView;
-    private GridViewAdapter mAdapter;
+    private ViewPager mViewPager;
+    private CustomPagerAdapter mPagerAdapter;
+    private GridView mGuiderView;
+    private ChestsAdapter mGuiderAdapter;
+    private GridView mTrackerView;
+    private ChestsAdapter mTrackerAdapter;
     private Set<String> mUsers;
     private String mUser;
     private List<Chest> mChests;
@@ -46,7 +51,9 @@ public class MainActivity extends AppCompatActivity {
 //        setTitle(getString(R.string.title));
         setTitle("");
 
-        mGridView = (GridView) findViewById(R.id.gridview);
+        mViewPager = (ViewPager) findViewById(R.id.pager);
+        mPagerAdapter = new CustomPagerAdapter(this);
+        mViewPager.setAdapter(mPagerAdapter);
 
         mSequence = getString(R.string.chest_sequence);
     }
@@ -59,8 +66,8 @@ public class MainActivity extends AppCompatActivity {
 
         loadChests();
 
-        mAdapter = new GridViewAdapter(this, mChests);
-        mGridView.setAdapter(mAdapter);
+        mTrackerAdapter = new ChestsAdapter(this, mChests);
+//        mTrackerView.setAdapter(mTrackerAdapter);
 
 //        mGridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 //            @Override
@@ -93,8 +100,8 @@ public class MainActivity extends AppCompatActivity {
                     saveUsers();
                     loadChests();
 
-                    mAdapter = new GridViewAdapter(getApplicationContext(), mChests);
-                    mGridView.setAdapter(mAdapter);
+                    mTrackerAdapter = new ChestsAdapter(getApplicationContext(), mChests);
+//                    mTrackerView.setAdapter(mTrackerAdapter);
                 }
 
                 @Override
@@ -184,7 +191,7 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean saveChests() {
         SharedPreferences chestPref = getSharedPreferences(mUser, MODE_PRIVATE);
-        String json = new Gson().toJson(mAdapter.getItems());
+        String json = new Gson().toJson(mTrackerAdapter.getItems());
         chestPref.edit().putString(getString(R.string.chest_seq_key), json).commit();
 
         Log.d(TAG, json);

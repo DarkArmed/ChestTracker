@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * Created by Xu on 5/18/16.
  */
-public class GridViewAdapter extends BaseAdapter {
+public class ChestsAdapter extends BaseAdapter {
     private final Context mContext;
     private List<Chest> mChests = new ArrayList<>();
     private String mSequence;
@@ -22,7 +22,7 @@ public class GridViewAdapter extends BaseAdapter {
     private final int BUFFER_LENGTH = 12;
     private final int EXTEND_LENGTH = 40;
 
-    public GridViewAdapter(Context context, List<Chest> chests) {
+    public ChestsAdapter(Context context, List<Chest> chests) {
         this.mContext = context;
         this.mChests = chests;
         this.mSequence = mContext.getString(R.string.chest_sequence);
