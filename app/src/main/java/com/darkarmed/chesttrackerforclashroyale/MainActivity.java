@@ -1,7 +1,9 @@
 package com.darkarmed.chesttrackerforclashroyale;
 
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Bundle;
+import android.support.v4.app.FragmentManager;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -23,21 +25,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class MainActivity extends AppCompatActivity {
-
+public class MainActivity extends AppCompatActivity
+        implements GuiderFragment.OnFragmentInteractionListener,
+        TrackerFragment.OnFragmentInteractionListener {
     private static final String TAG = "MainActivity";
     private Toolbar mToolbar;
     private TextView mToolbarTitle;
     private ViewPager mViewPager;
-    private CustomPagerAdapter mPagerAdapter;
-    private GridView mGuiderView;
-    private ChestsAdapter mGuiderAdapter;
-    private GridView mTrackerView;
-    private ChestsAdapter mTrackerAdapter;
+    private ChestTrackerPagerAdapter mPagerAdapter;
+    private FragmentManager mFragmentManager;
     private Set<String> mUsers;
     private String mUser;
-    private List<Chest> mChests;
-    private String mSequence;
 
 
     @Override
@@ -51,11 +49,6 @@ public class MainActivity extends AppCompatActivity {
 //        setTitle(getString(R.string.title));
         setTitle("");
 
-        mViewPager = (ViewPager) findViewById(R.id.pager);
-        mPagerAdapter = new CustomPagerAdapter(this);
-        mViewPager.setAdapter(mPagerAdapter);
-
-        mSequence = getString(R.string.chest_sequence);
     }
 
     @Override
@@ -64,10 +57,38 @@ public class MainActivity extends AppCompatActivity {
 
         loadUsers();
 
-        loadChests();
+        if (mUsers.size() > 1) {
+            Spinner mSpinner = (Spinner) findViewById(R.id.users_spinner);
+            final ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this,
+                    android.R.layout.simple_spinner_item, new ArrayList<>(mUsers));
 
-        mTrackerAdapter = new ChestsAdapter(this, mChests);
-//        mTrackerView.setAdapter(mTrackerAdapter);
+            arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            mSpinner.setAdapter(arrayAdapter);
+            mSpinner.setSelection(arrayAdapter.getPosition(mUser));
+            mSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    if (mUser != arrayAdapter.getItem(position)) {
+//                        saveChests();
+                        mUser = arrayAdapter.getItem(position);
+//                        saveUsers();
+//                        loadChests();
+                    }
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+
+                }
+            });
+        }
+
+        mFragmentManager = getSupportFragmentManager();
+        GuiderFragment gf = GuiderFragment.newInstance("hengji", "miaoji");
+        TrackerFragment tf = TrackerFragment.newInstance(mUser, "miaoji");
+        mPagerAdapter = new ChestTrackerPagerAdapter(mFragmentManager, gf, tf);
+        mViewPager = (ViewPager) findViewById(R.id.pager);
+        mViewPager.setAdapter(mPagerAdapter);
 
 //        mGridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 //            @Override
@@ -83,40 +104,13 @@ public class MainActivity extends AppCompatActivity {
 //                return false;
 //            }
 //        });
-
-        if (mUsers.size() > 1) {
-            Spinner mSpinner = (Spinner) findViewById(R.id.users_spinner);
-            final ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this,
-                    android.R.layout.simple_spinner_item, new ArrayList<>(mUsers));
-
-            arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            mSpinner.setAdapter(arrayAdapter);
-            mSpinner.setSelection(arrayAdapter.getPosition(mUser));
-            mSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    saveChests();
-                    mUser = arrayAdapter.getItem(position);
-                    saveUsers();
-                    loadChests();
-
-                    mTrackerAdapter = new ChestsAdapter(getApplicationContext(), mChests);
-//                    mTrackerView.setAdapter(mTrackerAdapter);
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-
-                }
-            });
-        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
 
-        saveChests();
+        saveUsers();
     }
 
     @Override
@@ -149,13 +143,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    public void onFragmentInteraction(Uri uri) {
+
+    }
+
     private void loadUsers() {
         SharedPreferences userPref = getPreferences(MODE_PRIVATE);
         mUser = userPref.getString("CURRENT_USER", "");
 
         if (mUser.equalsIgnoreCase("")) {
             mUser = "Hog Rider";
-            userPref.edit().putString("CURRENT_USER", mUser).commit();
         }
 
         mUsers = userPref.getStringSet("USERS", null);
@@ -165,48 +163,11 @@ public class MainActivity extends AppCompatActivity {
             mUsers.add(mUser);
             mUsers.add("Goblin");
             mUsers.add("Barbarian");
-            userPref.edit().putStringSet("USERS", mUsers).commit();
         }
     }
 
     private void saveUsers() {
         SharedPreferences userPref = getPreferences(MODE_PRIVATE);
         userPref.edit().putString("CURRENT_USER", mUser).putStringSet("USERS", mUsers).commit();
-    }
-
-    private boolean loadChests() {
-        SharedPreferences chestPref = getSharedPreferences(mUser, MODE_PRIVATE);
-        String json = chestPref.getString(getString(R.string.chest_seq_key), "");
-
-        if (json.equalsIgnoreCase("")) {
-            mChests = getChestList(mSequence);
-            return false;
-        } else {
-            Log.d(TAG, json);
-            mChests = new Gson().fromJson(json, new TypeToken<List<Chest>>() {
-            }.getType());
-            return true;
-        }
-    }
-
-    private boolean saveChests() {
-        SharedPreferences chestPref = getSharedPreferences(mUser, MODE_PRIVATE);
-        String json = new Gson().toJson(mTrackerAdapter.getItems());
-        chestPref.edit().putString(getString(R.string.chest_seq_key), json).commit();
-
-        Log.d(TAG, json);
-        Log.d(TAG, chestPref.getString(getString(R.string.chest_seq_key), ""));
-
-        return true;
-    }
-
-    private List<Chest> getChestList(String seq) {
-        List<Chest> chests = new ArrayList<>();
-
-        for (int i = 0; i < seq.length(); ++i) {
-            chests.add(new Chest(i, seq.charAt(i)));
-        }
-
-        return chests;
     }
 }
