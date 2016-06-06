@@ -7,6 +7,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +42,10 @@ public class ChestsAdapter extends BaseAdapter {
     public void remove(Chest chest) {
         mChests.remove(chest);
         notifyDataSetChanged();
+    }
+
+    public void remove(int pos) {
+        this.remove(mChests.get(pos));
     }
 
     private void extend(Boolean force) {
@@ -143,61 +148,28 @@ public class ChestsAdapter extends BaseAdapter {
 
         LayoutInflater layoutInflater = LayoutInflater.from(mContext);
 
-        final ImageButton imageButton = (ImageButton) layoutInflater.inflate(
-                R.layout.chest_button, parent, false);
+        final ImageView imageView = (ImageView) layoutInflater.inflate(
+                R.layout.view_chest, parent, false);
 
-        loadImage(imageButton, chest);
+        loadImage(imageView, chest);
 
-        imageButton.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                        imageButton.setScaleX(0.9f);
-                        imageButton.setScaleY(0.9f);
-                        break;
-                    case MotionEvent.ACTION_UP:
-                        imageButton.setScaleX(1f);
-                        imageButton.setScaleY(1f);
-                        break;
-                    default:
-                }
-                return false;
-            }
-        });
-
-        imageButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                open(chest);
-            }
-        });
-
-        imageButton.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                lock(chest);
-                return false;
-            }
-        });
-
-        return imageButton;
+        return imageView;
     }
 
-    private void loadImage(ImageButton imageButton, Chest chest) {
-        imageButton.setImageResource(chest.getThumb());
+    private void loadImage(ImageView imageView, Chest chest) {
+        imageView.setImageResource(chest.getThumb());
         switch (chest.getStatus()) {
             case LOCKED:
-                imageButton.setImageAlpha(191);
+                imageView.setImageAlpha(191);
                 break;
             case SKIPPED:
-                imageButton.setImageAlpha(127);
+                imageView.setImageAlpha(127);
                 break;
             case OPENED:
-                imageButton.setImageAlpha(255);
+                imageView.setImageAlpha(255);
                 break;
             default:
-                imageButton.setImageAlpha(255);
+                imageView.setImageAlpha(255);
         }
     }
 }

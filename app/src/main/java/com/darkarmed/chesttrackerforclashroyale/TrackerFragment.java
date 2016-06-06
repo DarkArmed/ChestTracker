@@ -7,8 +7,10 @@ import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.GridView;
 
 import com.google.gson.Gson;
@@ -38,17 +40,17 @@ public class TrackerFragment extends Fragment {
     private String mParam2;
 
     private Context mContext;
-    private GridView mTrackerView;
+    private GridView mGridView;
     private ChestsAdapter mAdapter;
-
     private List<Chest> mChests;
     private String mSequence;
+    private int mCurrentChest;
 
     private OnFragmentInteractionListener mListener;
 
-//    public TrackerFragment() {
-//        // Required empty public constructor
-//    }
+    public TrackerFragment() {
+        // Required empty public constructor
+    }
 
     /**
      * Use this factory method to create a new instance of
@@ -83,8 +85,7 @@ public class TrackerFragment extends Fragment {
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.fragment_tracker, container, false);
-        mTrackerView = (GridView) view.findViewById(R.id.trackerview);
-//        mTrackerView.setAdapter();
+        mGridView = (GridView) view.findViewById(R.id.trackerview);
         return view;
     }
 
@@ -119,13 +120,53 @@ public class TrackerFragment extends Fragment {
 
         loadChests();
         mAdapter = new ChestsAdapter(mContext, mChests);
-        mTrackerView.setAdapter(mAdapter);
+        mGridView.setAdapter(mAdapter);
+        mGridView.smoothScrollToPosition(mCurrentChest);
+
+        mGridView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                int position = mGridView.pointToPosition((int) event.getX(), (int) event.getY());
+                View view = mGridView.getChildAt(position);
+                if (view != null) {
+                    switch (event.getActionMasked()) {
+                        case MotionEvent.ACTION_DOWN:
+                            view.setScaleX(0.9f);
+                            view.setScaleY(0.9f);
+                            break;
+                        case MotionEvent.ACTION_UP:
+                            view.setScaleX(1f);
+                            view.setScaleY(1f);
+                            break;
+                        default:
+                    }
+                } else {
+                    Log.i(TAG, "Touch: Out of range");
+                }
+                return false;
+            }
+        });
+
+        mGridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                mAdapter.open(position);
+                mCurrentChest = position;
+            }
+        });
+
+        mGridView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+                mAdapter.lock(position);
+                return true;
+            }
+        });
     }
 
     @Override
     public void onPause() {
         super.onPause();
-
         saveChests();
     }
 
@@ -145,8 +186,8 @@ public class TrackerFragment extends Fragment {
     }
 
     private boolean loadChests() {
-        SharedPreferences chestPref = mContext.getSharedPreferences(mUser, Context.MODE_PRIVATE);
-        String json = chestPref.getString(getString(R.string.chest_seq_key), "");
+        SharedPreferences chestPref = getActivity().getSharedPreferences(mUser, Context.MODE_PRIVATE);
+        String json = chestPref.getString("CHEST_SEQ", "");
 
         if (json.equalsIgnoreCase("")) {
             mChests = getChestList(mSequence);
@@ -154,17 +195,18 @@ public class TrackerFragment extends Fragment {
         } else {
             Log.d(TAG, json);
             mChests = new Gson().fromJson(json, new TypeToken<List<Chest>>() {}.getType());
+            mCurrentChest = chestPref.getInt("CURRENT_CHEST", 0);
             return true;
         }
     }
 
     private boolean saveChests() {
-        SharedPreferences chestPref = mContext.getSharedPreferences(mUser, Context.MODE_PRIVATE);
+        SharedPreferences chestPref = getActivity().getSharedPreferences(mUser, Context.MODE_PRIVATE);
         String json = new Gson().toJson(mAdapter.getItems());
-        chestPref.edit().putString(getString(R.string.chest_seq_key), json).commit();
+        chestPref.edit().putString("CHEST_SEQ", json).putInt("CURRENT_CHEST", mCurrentChest).commit();
 
         Log.d(TAG, json);
-        Log.d(TAG, chestPref.getString(getString(R.string.chest_seq_key), ""));
+        Log.d(TAG, chestPref.getString("CHEST_SEQ", ""));
 
         return true;
     }
