@@ -8,13 +8,39 @@ android {
         applicationId "com.darkarmed.chesttrackerforclashroyale"
         minSdkVersion 18
         targetSdkVersion 23
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.0.0"
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    productFlavors {
+        dev{}
+        google{}
+        tencent{}
+        _360 {}
+        baidu {}
+        xiaomi {}
+        wandoujia {}
+    }
+
+    productFlavors.all {
+        flavor -> flavor.manifestPlaceholders = [CHANNEL_VALUE: name]
+    }
+
+    android.applicationVariants.all { variant ->
+        variant.outputs.each { output ->
+            def newApkName
+            //If there's no ZipAlign task it means that our artifact will be unaligned and we need to mark it as such.
+            if (output.zipAlign) {
+                newApkName = "${defaultConfig.applicationId}-${output.baseName}-${variant.versionName}.apk"
+            } else {
+                newApkName = "${defaultConfig.applicationId}-${output.baseName}-${variant.versionName}-unaligned.apk"
+            }
+            output.outputFile = new File(output.outputFile.parent, newApkName)
         }
     }
 }

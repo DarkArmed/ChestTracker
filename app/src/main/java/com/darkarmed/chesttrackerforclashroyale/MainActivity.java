@@ -1,5 +1,7 @@
 package com.darkarmed.chesttrackerforclashroyale;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.net.Uri;
@@ -9,10 +11,12 @@ import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.ContextThemeWrapper;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -105,6 +109,7 @@ public class MainActivity extends AppCompatActivity
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
+            Log.d(TAG, "Main action settings clicked.");
             return true;
         }
 
@@ -122,6 +127,23 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onFragmentInteraction(Uri uri) {
 
+    }
+
+    @Override
+    public void onMatchPositionApply(final int pos, final int length) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(
+                new ContextThemeWrapper(this, R.style.AppTheme_AlertDialogStyle));
+        builder.setMessage(R.string.apply_confirm)
+                .setPositiveButton(R.string.apply_confirm_ok,
+                new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        ((TrackerFragment) mPagerAdapter.getItem(1)).loadProgress(pos, length);
+                        mViewPager.setCurrentItem(1, true);
+                    }
+                })
+                .setNegativeButton(R.string.apply_confirm_cancel, null)
+                .show();
     }
 
     private void loadPreferences() {
@@ -143,7 +165,6 @@ public class MainActivity extends AppCompatActivity
 
         SharedPreferences userPref = getSharedPreferences(mUser, MODE_PRIVATE);
         mCurrentPage = userPref.getInt("CURRENT_PAGE", 0);
-
     }
 
     private void savePreferences() {
@@ -172,6 +193,10 @@ public class MainActivity extends AppCompatActivity
 
             @Override
             public void onPageSelected(int position) {
+                if (position == 1) {
+                    Toast.makeText(getApplicationContext(), getString(R.string.click_to_confirm),
+                            Toast.LENGTH_LONG).show();
+                }
                 mCurrentPage = position;
             }
 

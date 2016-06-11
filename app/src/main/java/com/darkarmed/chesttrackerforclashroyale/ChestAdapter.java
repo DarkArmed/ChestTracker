@@ -1,13 +1,13 @@
 package com.darkarmed.chesttrackerforclashroyale;
 
 import android.content.Context;
+import android.graphics.Typeface;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
-import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,18 +15,21 @@ import java.util.List;
 /**
  * Created by Xu on 5/18/16.
  */
-public class ChestsAdapter extends BaseAdapter {
+public class ChestAdapter extends BaseAdapter {
     private final Context mContext;
     private List<Chest> mChests = new ArrayList<>();
-    private String mSequence;
+    private boolean mShowIndexes;
+    private String mLoop;
     private int mLastOpened = 0;
     private final int BUFFER_LENGTH = 12;
     private final int EXTEND_LENGTH = 40;
+    private final int LOOP_LENGTH = 240;
 
-    public ChestsAdapter(Context context, List<Chest> chests) {
-        this.mContext = context;
-        this.mChests = chests;
-        this.mSequence = mContext.getString(R.string.chest_sequence);
+    public ChestAdapter(Context context, List<Chest> chests, boolean showIndexes) {
+        mContext = context;
+        mChests = chests;
+        mShowIndexes = showIndexes;
+        mLoop = mContext.getString(R.string.chest_loop);
     }
 
     public void add(Chest chest) {
@@ -53,31 +56,28 @@ public class ChestsAdapter extends BaseAdapter {
         int pos = getLastOpened();
         if (pos + BUFFER_LENGTH >= current_size) {
             for (int i = current_size; i < current_size + EXTEND_LENGTH; ++i) {
-                mChests.add(new Chest(i, mSequence.charAt(i % mSequence.length())));
+                mChests.add(new Chest(i % LOOP_LENGTH + 1, mLoop.charAt(i % LOOP_LENGTH)));
             }
             notifyDataSetChanged();
-        }
-    }
-
-    public void open(Chest chest) {
-        if (chest.getStatus() != Chest.Status.OPENED) {
-            chest.setStatus(Chest.Status.OPENED);
-            int pos = chest.getIndex();
-            skip(pos - 1);
-            extend(false);
-            notifyDataSetChanged();
-            if (mLastOpened < pos) {
-                mLastOpened = pos;
-            }
         }
     }
 
     public void open(int pos) {
-        this.open(mChests.get(pos));
+//        this.open(mChests.get(pos));
+        Chest chest = mChests.get(pos);
+        if (chest.getStatus() != Chest.Status.OPENED) {
+            chest.setStatus(Chest.Status.OPENED);
+            skip(pos - 1);
+            if (mLastOpened < pos) {
+                mLastOpened = pos;
+            }
+            extend(false);
+            notifyDataSetChanged();
+        }
     }
 
     public void open(Chest.Type type) {
-
+        // TODO: open chest
     }
 
     public void skip(int pos) {
@@ -90,21 +90,19 @@ public class ChestsAdapter extends BaseAdapter {
         }
     }
 
-    public void lock(Chest chest) {
+    public void lock(int pos) {
+//        this.lock(mChests.get(pos));
+        Chest chest = mChests.get(pos);
         if (chest.getStatus() == Chest.Status.OPENED) {
-            Chest nextChest = mChests.get(chest.getIndex() + 1);
-            if (nextChest.getStatus() == Chest.Status.LOCKED) {
+            if (pos == mChests.size() - 1 ||
+                    mChests.get(pos + 1).getStatus() == Chest.Status.LOCKED) {
                 chest.setStatus(Chest.Status.LOCKED);
-                mLastOpened = restore(chest.getIndex() - 1);
+                mLastOpened = restore(pos - 1);
             } else {
                 chest.setStatus(Chest.Status.SKIPPED);
             }
             notifyDataSetChanged();
         }
-    }
-
-    public void lock(int pos) {
-        this.lock(mChests.get(pos));
     }
 
     public int restore(int pos){
@@ -120,6 +118,10 @@ public class ChestsAdapter extends BaseAdapter {
 
     public int getLastOpened() {
         return mLastOpened;
+    }
+
+    public void setShowIndexes(boolean showIndexes) {
+        mShowIndexes = showIndexes;
     }
 
     @Override
@@ -143,17 +145,36 @@ public class ChestsAdapter extends BaseAdapter {
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
+        ViewHolder holder = null;
+
+        if (convertView == null) {
+
+            LayoutInflater layoutInflater = LayoutInflater.from(mContext);
+
+            convertView = layoutInflater.inflate(
+                    R.layout.view_chest, parent, false);
+            holder = new ViewHolder();
+            holder.imageView = (ImageView) convertView.findViewById(R.id.chest_view);
+            holder.textView = (TextView) convertView.findViewById(R.id.chest_id);
+            convertView.setTag(holder);
+        } else {
+            holder = (ViewHolder) convertView.getTag();
+        }
 
         final Chest chest = (Chest) getItem(position);
+        loadImage(holder.imageView, chest);
+        if (mShowIndexes) {
+            holder.textView.setText(chest.getIndex().toString());
+            Typeface tf = Typeface.createFromAsset(mContext.getAssets(), "fonts/Supercell-Magic_5.ttf");
+            holder.textView.setTypeface(tf);
+        }
 
-        LayoutInflater layoutInflater = LayoutInflater.from(mContext);
+        return convertView;
+    }
 
-        final ImageView imageView = (ImageView) layoutInflater.inflate(
-                R.layout.view_chest, parent, false);
-
-        loadImage(imageView, chest);
-
-        return imageView;
+    static class ViewHolder {
+        ImageView imageView;
+        TextView textView;
     }
 
     private void loadImage(ImageView imageView, Chest chest) {

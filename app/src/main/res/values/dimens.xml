@@ -3,8 +3,10 @@
     <dimen name="activity_horizontal_margin">0dp</dimen>
     <dimen name="activity_vertical_margin">0dp</dimen>
 
-    <dimen name="chest_button_width">60dp</dimen>
-    <dimen name="chest_button_height">80dp</dimen>
+    <dimen name="chest_view_width">60dp</dimen>
+    <dimen name="chest_view_height">80dp</dimen>
+    <dimen name="chest_text_height">5dp</dimen>
+    <dimen name="chest_text_size">12sp</dimen>
 
     <dimen name="guider_view_height">240dp</dimen>
     <dimen name="guider_text_margin">15dp</dimen>

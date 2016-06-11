@@ -8,6 +8,9 @@ import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,12 +19,15 @@ import android.widget.Button;
 import android.widget.GridView;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.SortedSet;
 
 
 /**
@@ -44,11 +50,16 @@ public class GuiderFragment extends Fragment {
     private String mParam2;
 
     private Context mContext;
+    private Menu mMenu;
     private View mView;
     private GridView mGridView;
-    private ChestsAdapter mAdapter;
+    private ChestAdapter mAdapter;
     private List<Chest> mChests;
-    private List<ImageButton> mImageButtons;
+
+    private TextView mMatchedTextView;
+    private TextView mMatchedPosTextView;
+    private Button mApplyButton;
+    private boolean mFuzzy;
 
     private OnFragmentInteractionListener mListener;
 
@@ -101,6 +112,7 @@ public class GuiderFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setHasOptionsMenu(true);
         if (getArguments() != null) {
             mUser = getArguments().getString(ARG_USER);
             mParam2 = getArguments().getString(ARG_PARAM2);
@@ -146,7 +158,7 @@ public class GuiderFragment extends Fragment {
         super.onResume();
 
         loadChests();
-        mAdapter = new ChestsAdapter(mContext, mChests);
+        mAdapter = new ChestAdapter(mContext, mChests, false);
         mGridView.setAdapter(mAdapter);
         mGridView.smoothScrollToPosition(mGridView.getCount() - 1);
 
@@ -154,23 +166,25 @@ public class GuiderFragment extends Fragment {
             @Override
             public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
                 mAdapter.remove(position);
+                checkMatched();
                 return true;
             }
         });
 
         Typeface tf = Typeface.createFromAsset(mContext.getAssets(), "fonts/Supercell-Magic_5.ttf");
 
-        TextView matchedTextView = (TextView) mView.findViewById(R.id.matched_text_view);
-        matchedTextView.setText(getString(R.string.matched_position));
-        matchedTextView.setTypeface(tf);
+        mMatchedTextView = (TextView) mView.findViewById(R.id.matched_text_view);
+        mMatchedTextView.setText(getString(R.string.matched_position));
+        mMatchedTextView.setTypeface(tf);
 
-        TextView matchedPosTextView = (TextView) mView.findViewById(R.id.matched_position_view);
-        matchedPosTextView.setText("None");
-//        matchedPosTextView.setText("9 37 53");
-        matchedPosTextView.setTypeface(tf);
+        mMatchedPosTextView = (TextView) mView.findViewById(R.id.matched_position_view);
+        mMatchedPosTextView.setText("None");
+        mMatchedPosTextView.setTypeface(tf);
 
-        Button applyButton = (Button) mView.findViewById(R.id.matched_apply_button);
-        applyButton.setTypeface(tf);
+        mApplyButton = (Button) mView.findViewById(R.id.matched_apply_button);
+        mApplyButton.setTypeface(tf);
+
+        checkMatched();
 
         for (ChestButtonEnum e : ChestButtonEnum.values()) {
             final ImageButton imageButton = (ImageButton) mView.findViewById(e.getViewResId());
@@ -197,6 +211,11 @@ public class GuiderFragment extends Fragment {
                 @Override
                 public void onClick(View v) {
                     addChest((Chest.Type) v.getTag());
+                    Toast.makeText(mContext, getString(R.string.long_press_to_cancel),
+                            Toast.LENGTH_SHORT).show();
+                    if (mChests.size() > 4) {
+                        checkMatched();
+                    }
                 }
             });
         }
@@ -221,18 +240,48 @@ public class GuiderFragment extends Fragment {
     public interface OnFragmentInteractionListener {
         // TODO: Update argument type and name
         void onFragmentInteraction(Uri uri);
+        void onMatchPositionApply(int pos, int length);
     }
 
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        mMenu = menu;
+        inflater.inflate(R.menu.menu_guider, menu);
+        menu.findItem(R.id.action_fuzzy).setTitle(mFuzzy ?
+                R.string.action_fuzzy_off : R.string.action_fuzzy_on);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // handle item selection
+        switch (item.getItemId()) {
+            case R.id.action_settings:
+                Log.d(TAG, "TrackerFragment action settings clicked.");
+                return true;
+            case R.id.action_fuzzy:
+                Log.d(TAG, "TrackerFragment action fuzzy clicked.");
+                toggleFuzzyMatch();
+                return true;
+            case R.id.action_clear:
+                Log.d(TAG, "TrackerFragment action clear clicked.");
+                clearAll();
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
     private boolean loadChests() {
         SharedPreferences chestPref = getActivity().getSharedPreferences(mUser, Context.MODE_PRIVATE);
         String json = chestPref.getString("CHESTS", "");
 
         if (json.equalsIgnoreCase("")) {
             mChests = new ArrayList<>();
+            mFuzzy = false;
             return false;
         } else {
             Log.d(TAG, json);
             mChests = new Gson().fromJson(json, new TypeToken<List<Chest>>() {}.getType());
+            mFuzzy = chestPref.getBoolean("FUZZY_MATCH", false);
             return true;
         }
     }
@@ -240,7 +289,7 @@ public class GuiderFragment extends Fragment {
     private boolean saveChests() {
         SharedPreferences chestPref = getActivity().getSharedPreferences(mUser, Context.MODE_PRIVATE);
         String json = new Gson().toJson(mAdapter.getItems());
-        chestPref.edit().putString("CHESTS", json).commit();
+        chestPref.edit().putString("CHESTS", json).putBoolean("FUZZY_MATCH", mFuzzy).commit();
 
         Log.d(TAG, json);
         Log.d(TAG, chestPref.getString("CHESTS", ""));
@@ -250,8 +299,87 @@ public class GuiderFragment extends Fragment {
 
     private void addChest(Chest.Type type) {
         if (mAdapter != null){
-            mAdapter.add(new Chest(mAdapter.getCount(), type, Chest.Status.OPENED));
+            mAdapter.add(new Chest(mAdapter.getCount() + 1, type, Chest.Status.OPENED));
             mGridView.smoothScrollToPosition(mGridView.getCount() - 1);
         }
+    }
+
+    private void checkMatched() {
+        final String chests = getChestSequence();
+
+        ChestMatcher matcher = new ChestMatcher(getString(R.string.chest_loop));
+
+        SortedSet<Map.Entry<Integer, Integer>> matched = matcher.getMatchedPositions(chests, mFuzzy);
+
+        String matchedPosition = "";
+        if (matched.size() == 1) {
+            matchedPosition = matched.first().getKey().toString();
+            mApplyButton.setEnabled(true);
+
+            final Integer finalMatchedPosition = matched.first().getKey();
+            final Integer finalMatchedLength = matched.first().getValue();
+            mApplyButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    mListener.onMatchPositionApply(finalMatchedPosition, finalMatchedLength);
+                }
+            });
+
+        } else {
+            if (matched.size() > 0) {
+                int count = 0;
+                for (Map.Entry<Integer, Integer> e : matched) {
+                    if (e.getValue() < 5 || count > 8) {
+                        matchedPosition += "...";
+                        break;
+                    }
+                    count++;
+                    matchedPosition += e.getKey().toString() + " ";
+                }
+            }
+            mApplyButton.setEnabled(false);
+        }
+
+        mMatchedPosTextView.setText(matchedPosition);
+    }
+
+    private String getChestSequence() {
+        String chests = "";
+        for (Chest chest : mChests) {
+            switch (chest.getType()) {
+                case SILVER:
+                    chests += "s";
+                    break;
+                case GOLDEN:
+                    chests += "g";
+                    break;
+                case GIANT:
+                    chests += "G";
+                    break;
+                case MAGICAL:
+                    chests += "m";
+                    break;
+                default:
+                    chests += "s";
+            }
+        }
+        return chests;
+    }
+
+    private void toggleFuzzyMatch() {
+        MenuItem indexMenuItem = mMenu.findItem(R.id.action_fuzzy);
+        if (mFuzzy) {
+            mFuzzy = false;
+            indexMenuItem.setTitle(R.string.action_fuzzy_on);
+        } else {
+            mFuzzy = true;
+            indexMenuItem.setTitle(R.string.action_fuzzy_off);
+        }
+        checkMatched();
+    }
+
+    private void clearAll() {
+        mAdapter.clear();
+        checkMatched();
     }
 }

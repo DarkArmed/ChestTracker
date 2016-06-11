@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.darkarmed.chesttrackerforclashroyale" >
+    package="com.darkarmed.chesttrackerforclashroyale"
+    android:versionCode="2"
+    android:versionName="1.0.0">
 
     <application
         android:allowBackup="true"
@@ -18,6 +20,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <meta-data android:name="CHANNEL_VALUE" android:value="${CHANNEL_VALUE}" />
     </application>
 
 </manifest>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">皇室战争：宝箱追踪</string>
+    <string name="title">宝箱追踪</string>
+
+    <string name="action_settings">设置</string>
+    <string name="apply_confirm">将覆盖您的宝箱进度，确定继续吗？</string>
+    <string name="apply_confirm_ok">确定</string>
+    <string name="apply_confirm_cancel">取消</string>
+
+    <string name="action_fuzzy_off">精确匹配</string>
+    <string name="action_fuzzy_on">模糊匹配</string>
+    <string name="action_clear">清空</string>
+    <string name="matched_position">匹配位置：</string>
+    <string name="matched_position_apply">应用</string>
+
+    <string name="action_indexes_hide">隐藏序号</string>
+    <string name="action_indexes_show">显示序号</string>
+    <string name="click_to_confirm">点击任意宝箱以确认获取</string>
+    <string name="long_press_to_cancel">宝箱已记录，长按该宝箱撤销</string>
+</resources>

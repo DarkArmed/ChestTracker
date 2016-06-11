@@ -7,11 +7,15 @@ import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.GridView;
+import android.widget.Toast;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -40,11 +44,15 @@ public class TrackerFragment extends Fragment {
     private String mParam2;
 
     private Context mContext;
+    private Menu mMenu;
     private GridView mGridView;
-    private ChestsAdapter mAdapter;
+    private ChestAdapter mAdapter;
     private List<Chest> mChests;
-    private String mSequence;
+    private String mLoop;
     private int mCurrentChest;
+    private boolean mShowIndexes;
+
+    private final int COL_NUM = 6;
 
     private OnFragmentInteractionListener mListener;
 
@@ -73,11 +81,12 @@ public class TrackerFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setHasOptionsMenu(true);
         if (getArguments() != null) {
             mUser = getArguments().getString(ARG_USER);
             mParam2 = getArguments().getString(ARG_PARAM2);
         }
-        mSequence = getString(R.string.chest_sequence);
+        mLoop = getString(R.string.chest_loop);
     }
 
     @Override
@@ -119,9 +128,9 @@ public class TrackerFragment extends Fragment {
         super.onResume();
 
         loadChests();
-        mAdapter = new ChestsAdapter(mContext, mChests);
+        mAdapter = new ChestAdapter(mContext, mChests, mShowIndexes);
         mGridView.setAdapter(mAdapter);
-        mGridView.smoothScrollToPosition(mCurrentChest);
+        locateCurrentChest();
 
         mGridView.setOnTouchListener(new View.OnTouchListener() {
             @Override
@@ -152,6 +161,9 @@ public class TrackerFragment extends Fragment {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 mAdapter.open(position);
                 mCurrentChest = position;
+                mGridView.smoothScrollToPosition(mCurrentChest + COL_NUM);
+                Toast.makeText(mContext, getString(R.string.long_press_to_cancel),
+                        Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -185,17 +197,68 @@ public class TrackerFragment extends Fragment {
         void onFragmentInteraction(Uri uri);
     }
 
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        mMenu = menu;
+        inflater.inflate(R.menu.menu_tracker, menu);
+        menu.findItem(R.id.action_indexes).setTitle(mShowIndexes ?
+                R.string.action_indexes_hide : R.string.action_indexes_show);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // handle item selection
+        switch (item.getItemId()) {
+            case R.id.action_settings:
+                Log.d(TAG, "TrackerFragment action settings clicked.");
+                return true;
+            case R.id.action_indexes:
+                Log.d(TAG, "TrackerFragment action indexes clicked.");
+                toggleIndexes();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+    public void loadProgress(int pos, int length) {
+        String loop = mLoop;
+        if (pos < length) {
+            loop += mLoop.substring(0, (pos / 40) + 40);
+            pos += mLoop.length();
+        }
+
+        mChests = getChestList(loop);
+
+        for (int i = 0; i < pos - length; ++i) {
+            mChests.get(i).setStatus(Chest.Status.SKIPPED);
+        }
+        for (int i = 1; i <= length; ++i) {
+            mChests.get(pos - i).setStatus(Chest.Status.OPENED);
+        }
+
+        mCurrentChest = pos - 1;
+        mShowIndexes = true;
+        mAdapter = new ChestAdapter(mContext, mChests, mShowIndexes);
+        mGridView.setAdapter(mAdapter);
+        locateCurrentChest();
+    }
+
     private boolean loadChests() {
         SharedPreferences chestPref = getActivity().getSharedPreferences(mUser, Context.MODE_PRIVATE);
         String json = chestPref.getString("CHEST_SEQ", "");
 
         if (json.equalsIgnoreCase("")) {
-            mChests = getChestList(mSequence);
+            mChests = getChestList(mLoop);
+            mCurrentChest = 0;
+            mShowIndexes = true;
             return false;
         } else {
             Log.d(TAG, json);
             mChests = new Gson().fromJson(json, new TypeToken<List<Chest>>() {}.getType());
             mCurrentChest = chestPref.getInt("CURRENT_CHEST", 0);
+            mShowIndexes = chestPref.getBoolean("SHOW_INDEXES", true);
             return true;
         }
     }
@@ -203,7 +266,9 @@ public class TrackerFragment extends Fragment {
     private boolean saveChests() {
         SharedPreferences chestPref = getActivity().getSharedPreferences(mUser, Context.MODE_PRIVATE);
         String json = new Gson().toJson(mAdapter.getItems());
-        chestPref.edit().putString("CHEST_SEQ", json).putInt("CURRENT_CHEST", mCurrentChest).commit();
+        chestPref.edit().putString("CHEST_SEQ", json)
+                .putInt("CURRENT_CHEST", mCurrentChest)
+                .putBoolean("SHOW_INDEXES", mShowIndexes).commit();
 
         Log.d(TAG, json);
         Log.d(TAG, chestPref.getString("CHEST_SEQ", ""));
@@ -211,13 +276,34 @@ public class TrackerFragment extends Fragment {
         return true;
     }
 
-    private List<Chest> getChestList(String seq) {
+    private List<Chest> getChestList(String loop) {
         List<Chest> chests = new ArrayList<>();
 
-        for (int i = 0; i < seq.length(); ++i) {
-            chests.add(new Chest(i, seq.charAt(i)));
+        for (int i = 0; i < loop.length(); ++i) {
+            chests.add(new Chest(i + 1, loop.charAt(i)));
         }
 
         return chests;
+    }
+
+    private void locateCurrentChest() {
+        if (mCurrentChest > COL_NUM * 10) {
+            mGridView.setSelection(mCurrentChest - COL_NUM * 10);
+        }
+        mGridView.smoothScrollToPosition(mCurrentChest + COL_NUM);
+    }
+
+    private void toggleIndexes() {
+        MenuItem indexMenuItem = mMenu.findItem(R.id.action_indexes);
+        if (mShowIndexes) {
+            mShowIndexes = false;
+            indexMenuItem.setTitle(R.string.action_indexes_show);
+        } else {
+            mShowIndexes = true;
+            indexMenuItem.setTitle(R.string.action_indexes_hide);
+        }
+        mAdapter.setShowIndexes(mShowIndexes);
+        mGridView.setAdapter(mAdapter);
+        mGridView.setSelection(mCurrentChest - COL_NUM * 5);
     }
 }
