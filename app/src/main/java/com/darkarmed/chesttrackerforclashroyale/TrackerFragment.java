@@ -45,6 +45,7 @@ public class TrackerFragment extends Fragment {
 
     private Context mContext;
     private Menu mMenu;
+    private Toast mToast;
     private GridView mGridView;
     private ChestAdapter mAdapter;
     private List<Chest> mChests;
@@ -53,6 +54,7 @@ public class TrackerFragment extends Fragment {
     private boolean mShowIndexes;
 
     private final int COL_NUM = 6;
+    private final int FULL_LOOP_LENGTH = 240;
 
     private OnFragmentInteractionListener mListener;
 
@@ -162,8 +164,14 @@ public class TrackerFragment extends Fragment {
                 mAdapter.open(position);
                 mCurrentChest = position;
                 mGridView.smoothScrollToPosition(mCurrentChest + COL_NUM);
-                Toast.makeText(mContext, getString(R.string.long_press_to_cancel),
-                        Toast.LENGTH_SHORT).show();
+
+                if (mToast == null) {
+                    mToast = Toast.makeText(mContext, getString(R.string.long_press_to_cancel),
+                            Toast.LENGTH_SHORT);
+                } else {
+                    mToast.setDuration(Toast.LENGTH_SHORT);
+                }
+                mToast.show();
             }
         });
 
@@ -265,10 +273,12 @@ public class TrackerFragment extends Fragment {
 
     private boolean saveChests() {
         SharedPreferences chestPref = getActivity().getSharedPreferences(mUser, Context.MODE_PRIVATE);
-        String json = new Gson().toJson(mAdapter.getItems());
+        String json = new Gson().toJson(mChests);
         chestPref.edit().putString("CHEST_SEQ", json)
                 .putInt("CURRENT_CHEST", mCurrentChest)
-                .putBoolean("SHOW_INDEXES", mShowIndexes).commit();
+                .putBoolean("SHOW_INDEXES", mShowIndexes)
+                .putBoolean("IN_PROGRESS", mChests.size() > 0)
+                .commit();
 
         Log.d(TAG, json);
         Log.d(TAG, chestPref.getString("CHEST_SEQ", ""));
@@ -280,7 +290,7 @@ public class TrackerFragment extends Fragment {
         List<Chest> chests = new ArrayList<>();
 
         for (int i = 0; i < loop.length(); ++i) {
-            chests.add(new Chest(i + 1, loop.charAt(i)));
+            chests.add(new Chest(i % FULL_LOOP_LENGTH + 1, loop.charAt(i)));
         }
 
         return chests;

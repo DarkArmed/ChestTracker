@@ -18,7 +18,9 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 public class MainActivity extends AppCompatActivity
@@ -134,16 +136,21 @@ public class MainActivity extends AppCompatActivity
         AlertDialog.Builder builder = new AlertDialog.Builder(
                 new ContextThemeWrapper(this, R.style.AppTheme_AlertDialogStyle));
         builder.setMessage(R.string.apply_confirm)
-                .setPositiveButton(R.string.apply_confirm_ok,
+                .setPositiveButton(R.string.confirm_ok,
                 new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        ((TrackerFragment) mPagerAdapter.getItem(1)).loadProgress(pos, length);
-                        mViewPager.setCurrentItem(1, true);
+                        loadProgress(pos, length);
                     }
                 })
-                .setNegativeButton(R.string.apply_confirm_cancel, null)
+                .setNegativeButton(R.string.confirm_cancel, null)
                 .show();
+    }
+
+    @Override
+    public void onShowHint(Map<Chest.Type, Integer> types) {
+        HintFragment hintFragment = HintFragment.newInstance((HashMap) types, "miaoji");
+        hintFragment.show(getFragmentManager(), "HintFragment");
     }
 
     private void loadPreferences() {
@@ -205,5 +212,30 @@ public class MainActivity extends AppCompatActivity
 
             }
         });
+    }
+
+    private void loadProgress(final int pos, final int length) {
+        SharedPreferences userPref = getSharedPreferences(mUser, MODE_PRIVATE);
+        boolean inProgress = userPref.getBoolean("IN_PROGRESS", false);
+
+        if (inProgress) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(
+                    new ContextThemeWrapper(this, R.style.AppTheme_AlertDialogStyle));
+            builder.setMessage(R.string.overwrite_confirm)
+                    .setPositiveButton(R.string.confirm_ok,
+                            new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    ((TrackerFragment) mPagerAdapter.getItem(1)).loadProgress(pos, length);
+                                    mViewPager.setCurrentItem(1, true);
+                                }
+                            })
+                    .setNegativeButton(R.string.confirm_cancel, null)
+                    .show();
+
+        } else {
+            ((TrackerFragment) mPagerAdapter.getItem(1)).loadProgress(pos, length);
+            mViewPager.setCurrentItem(1, true);
+        }
     }
 }

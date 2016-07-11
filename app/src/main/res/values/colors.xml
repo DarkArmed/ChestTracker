@@ -8,4 +8,6 @@
     <color name="colorBackground">#2B3A4B</color>
     <color name="colorBackgroundDark">#283342</color>
     <color name="colorButtonBackground">#00FFFFFF</color>
+    <color name="colorBackgroundMatched">#3300FF00</color>
+    <color name="colorBackgroundNotMatched">#33FF0000</color>
 </resources>

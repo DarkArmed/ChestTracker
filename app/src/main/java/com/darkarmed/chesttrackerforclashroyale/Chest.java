@@ -1,14 +1,16 @@
 package com.darkarmed.chesttrackerforclashroyale;
 
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by Xu on 5/20/16.
  */
-public class Chest {
+public class Chest implements Cloneable {
 
     public enum Type {
-        SILVER, GOLDEN, GIANT, MAGICAL, SUPER_MAGICAL
+        SILVER, GOLDEN, GIANT, MAGICAL, SUPER_MAGICAL, MULTI
     }
     public enum Status {
         LOCKED, SKIPPED, OPENED
@@ -18,9 +20,12 @@ public class Chest {
 
     private Type mType = Type.SILVER;
     private Status mStatus = Status.LOCKED;
+    private Boolean mMatched = null;
 
     private Integer mThumb;
     private Integer mThumbLocked;
+
+    private Map<Type, Integer> mTypes;
 
     private Date mDate = new Date();
 
@@ -28,30 +33,18 @@ public class Chest {
         this.mIndex = index;
         this.mType = type;
         this.mStatus = status;
+        this.mTypes = new HashMap<>();
+    }
+
+    Chest(Integer index, Type type) {
+        this(index, type, Status.LOCKED);
     }
 
     Chest(Integer index, char c) {
         this.mIndex = index;
-        switch (c) {
-            case 's':
-                this.mType = Chest.Type.SILVER;
-                break;
-            case 'g':
-                this.mType = Chest.Type.GOLDEN;
-                break;
-            case 'G':
-                this.mType = Chest.Type.GIANT;
-                break;
-            case 'm':
-                this.mType = Chest.Type.MAGICAL;
-                break;
-            case 'M':
-                this.mType = Chest.Type.SUPER_MAGICAL;
-                break;
-            default:
-                this.mType = Chest.Type.SILVER;
-        }
+        this.mType = char2Type(c);
         this.mStatus = Chest.Status.LOCKED;
+        this.mTypes = new HashMap<>();
     }
 
     public Integer getIndex() {
@@ -76,6 +69,14 @@ public class Chest {
 
     public void setStatus(Status status) {
         this.mStatus = status;
+    }
+
+    public Boolean getMatched() {
+        return mMatched;
+    }
+
+    public void setMatched(boolean matched) {
+        mMatched = matched;
     }
 
     public Integer getThumb() {
@@ -105,9 +106,58 @@ public class Chest {
                 mThumb = R.drawable.magical_chest;
                 mThumbLocked = R.drawable.magical_chest_locked;
                 break;
+            case MULTI:
+                mThumb = R.drawable.multi_chest;
+                mThumbLocked = R.drawable.multi_chest;
+                break;
             default:
                 mThumb = R.drawable.silver_chest;
                 mThumbLocked = R.drawable.silver_chest_locked;
         }
+    }
+
+    public void addTypeCount(Type type, int num) {
+        if (mTypes.containsKey(type)) {
+            mTypes.put(type, mTypes.get(type) + num);
+        } else {
+            mTypes.put(type, num);
+        }
+    }
+
+    public void addTypeCount(char c, int num) {
+        addTypeCount(char2Type(c), num);
+    }
+
+    public Map<Type, Integer> getTypes() {
+        return mTypes;
+    }
+
+    private Type char2Type(char c) {
+        switch (c) {
+            case 's':
+                return Type.SILVER;
+            case 'g':
+                return Type.GOLDEN;
+            case 'G':
+                return Type.GIANT;
+            case 'm':
+                return Type.MAGICAL;
+            case 'M':
+                return Type.SUPER_MAGICAL;
+            case 'x':
+                return Type.MULTI;
+            default:
+                return Type.SILVER;
+        }
+    }
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        Chest chest = (Chest)super.clone();
+        chest.mIndex = this.mIndex;
+        chest.mType = this.mType;
+        chest.mStatus = this.mStatus;
+        chest.mDate = new Date();
+        return chest;
     }
 }

@@ -1,5 +1,6 @@
 package com.darkarmed.chesttrackerforclashroyale;
 
+import android.app.FragmentTransaction;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Typeface;
@@ -18,6 +19,7 @@ import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.GridView;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -25,9 +27,12 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.SortedSet;
+import java.util.Set;
 
 
 /**
@@ -52,14 +57,19 @@ public class GuiderFragment extends Fragment {
     private Context mContext;
     private Menu mMenu;
     private View mView;
+    private Toast mToast;
     private GridView mGridView;
+    private TextView mHelperTextView;
+    private TextView mMatchedTextView;
+
     private ChestAdapter mAdapter;
     private List<Chest> mChests;
+    private Set<Map.Entry<Integer, Integer>> mMatchPositions;
 
-    private TextView mMatchedTextView;
-    private TextView mMatchedPosTextView;
-    private Button mApplyButton;
-    private boolean mFuzzy;
+    private String mLoop;
+
+    private final int SHORT_LOOP_LENGTH = 40;
+    private final int FULL_LOOP_LENGTH = 240;
 
     private OnFragmentInteractionListener mListener;
 
@@ -68,7 +78,6 @@ public class GuiderFragment extends Fragment {
         GOLDEN(R.id.golden_chest_button, Chest.Type.GOLDEN),
         GIANT(R.id.giant_chest_button, Chest.Type.GIANT),
         MAGICAL(R.id.magical_chest_button, Chest.Type.MAGICAL);
-//        SUPER_MAGICAL(R.id.super_magical_chest_button, Chest.Type.SUPER_MAGICAL);
 
         private int mViewResId;
         private Chest.Type mType;
@@ -117,6 +126,7 @@ public class GuiderFragment extends Fragment {
             mUser = getArguments().getString(ARG_USER);
             mParam2 = getArguments().getString(ARG_PARAM2);
         }
+        mLoop = getString(R.string.chest_loop);
     }
 
     @Override
@@ -157,34 +167,42 @@ public class GuiderFragment extends Fragment {
     public void onResume() {
         super.onResume();
 
+        Typeface tf = Typeface.createFromAsset(mContext.getAssets(), "fonts/Supercell-Magic_5.ttf");
+
+        mHelperTextView = (TextView) mView.findViewById(R.id.helper_text);
+        mHelperTextView.setText(R.string.guider_helper);
+        if (Locale.getDefault().getLanguage().equals("en")) {
+            mHelperTextView.setTypeface(tf);
+        }
+
+        mMatchedTextView = (TextView) mView.findViewById(R.id.matched_text);
+        mMatchedTextView.setText("");
+        mMatchedTextView.setTypeface(tf);
+
         loadChests();
-        mAdapter = new ChestAdapter(mContext, mChests, false);
-        mGridView.setAdapter(mAdapter);
-        mGridView.smoothScrollToPosition(mGridView.getCount() - 1);
+        loadViews();
+
+        mGridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                Map<Chest.Type, Integer> types = ((Chest) mAdapter.getItem(position)).getTypes();
+                if (types.size() > 1) {
+                    mListener.onShowHint(types);
+                }
+            }
+        });
 
         mGridView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-                mAdapter.remove(position);
-                checkMatched();
+                if (position < mChests.size()) {
+                    mChests.remove(position);
+                    loadViews();
+                    loadProgress();
+                }
                 return true;
             }
         });
-
-        Typeface tf = Typeface.createFromAsset(mContext.getAssets(), "fonts/Supercell-Magic_5.ttf");
-
-        mMatchedTextView = (TextView) mView.findViewById(R.id.matched_text_view);
-        mMatchedTextView.setText(getString(R.string.matched_position));
-        mMatchedTextView.setTypeface(tf);
-
-        mMatchedPosTextView = (TextView) mView.findViewById(R.id.matched_position_view);
-        mMatchedPosTextView.setText("None");
-        mMatchedPosTextView.setTypeface(tf);
-
-        mApplyButton = (Button) mView.findViewById(R.id.matched_apply_button);
-        mApplyButton.setTypeface(tf);
-
-        checkMatched();
 
         for (ChestButtonEnum e : ChestButtonEnum.values()) {
             final ImageButton imageButton = (ImageButton) mView.findViewById(e.getViewResId());
@@ -210,12 +228,16 @@ public class GuiderFragment extends Fragment {
             imageButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
+
                     addChest((Chest.Type) v.getTag());
-                    Toast.makeText(mContext, getString(R.string.long_press_to_cancel),
-                            Toast.LENGTH_SHORT).show();
-                    if (mChests.size() > 4) {
-                        checkMatched();
+
+                    if (mToast == null) {
+                        mToast = Toast.makeText(mContext, getString(R.string.long_press_to_cancel),
+                                Toast.LENGTH_SHORT);
+                    } else {
+                        mToast.setDuration(Toast.LENGTH_SHORT);
                     }
+                    mToast.show();
                 }
             });
         }
@@ -241,6 +263,7 @@ public class GuiderFragment extends Fragment {
         // TODO: Update argument type and name
         void onFragmentInteraction(Uri uri);
         void onMatchPositionApply(int pos, int length);
+        void onShowHint(Map<Chest.Type, Integer> types);
     }
 
     @Override
@@ -248,8 +271,6 @@ public class GuiderFragment extends Fragment {
         super.onCreateOptionsMenu(menu, inflater);
         mMenu = menu;
         inflater.inflate(R.menu.menu_guider, menu);
-        menu.findItem(R.id.action_fuzzy).setTitle(mFuzzy ?
-                R.string.action_fuzzy_off : R.string.action_fuzzy_on);
     }
 
     @Override
@@ -258,10 +279,6 @@ public class GuiderFragment extends Fragment {
         switch (item.getItemId()) {
             case R.id.action_settings:
                 Log.d(TAG, "TrackerFragment action settings clicked.");
-                return true;
-            case R.id.action_fuzzy:
-                Log.d(TAG, "TrackerFragment action fuzzy clicked.");
-                toggleFuzzyMatch();
                 return true;
             case R.id.action_clear:
                 Log.d(TAG, "TrackerFragment action clear clicked.");
@@ -276,71 +293,133 @@ public class GuiderFragment extends Fragment {
 
         if (json.equalsIgnoreCase("")) {
             mChests = new ArrayList<>();
-            mFuzzy = false;
             return false;
         } else {
             Log.d(TAG, json);
             mChests = new Gson().fromJson(json, new TypeToken<List<Chest>>() {}.getType());
-            mFuzzy = chestPref.getBoolean("FUZZY_MATCH", false);
             return true;
         }
     }
 
     private boolean saveChests() {
         SharedPreferences chestPref = getActivity().getSharedPreferences(mUser, Context.MODE_PRIVATE);
-        String json = new Gson().toJson(mAdapter.getItems());
-        chestPref.edit().putString("CHESTS", json).putBoolean("FUZZY_MATCH", mFuzzy).commit();
+        String json = new Gson().toJson(mChests);
+        chestPref.edit().putString("CHESTS", json).commit();
 
         Log.d(TAG, json);
         Log.d(TAG, chestPref.getString("CHESTS", ""));
-
         return true;
     }
 
     private void addChest(Chest.Type type) {
-        if (mAdapter != null){
-            mAdapter.add(new Chest(mAdapter.getCount() + 1, type, Chest.Status.OPENED));
-            mGridView.smoothScrollToPosition(mGridView.getCount() - 1);
+        Chest chest = new Chest(mChests.size(), type, Chest.Status.OPENED);
+        mChests.add(chest);
+        loadViews();
+        loadProgress();
+    }
+
+    private void loadViews() {
+
+        if (mChests.size() == 0) {
+            mGridView.setVisibility(View.GONE);
+            mMatchedTextView.setVisibility(View.GONE);
+            mHelperTextView.setVisibility(View.VISIBLE);
+            return;
+        }
+
+        mHelperTextView.setVisibility(View.GONE);
+        mGridView.setVisibility(View.VISIBLE);
+        mMatchedTextView.setVisibility(View.VISIBLE);
+
+        List<Chest> chests = new ArrayList<>(mChests.size());
+        try {
+            for (Chest chest : mChests) {
+                chests.add((Chest)chest.clone());
+            }
+        } catch (CloneNotSupportedException e) {
+            Log.e(TAG, e.getMessage());
+        }
+
+        if (getMatched()) {
+            int firstMatched =  mChests.size() - mMatchPositions.iterator().next().getValue();
+            for (int i = 0; i < mChests.size(); ++i) {
+                chests.get(i).setMatched(i >= firstMatched);
+            }
+
+            List<Integer> posList = new ArrayList<>(mMatchPositions.size());
+            for (Map.Entry<Integer, Integer> e : mMatchPositions) {
+                posList.add(e.getKey());
+            }
+
+            for (int i = 0; i < SHORT_LOOP_LENGTH; ++i) {
+                Map<Character, Integer> types = new HashMap<>();
+                for (Integer pos : posList) {
+                    char c = mLoop.charAt((pos + i) % FULL_LOOP_LENGTH);
+                    if (types.containsKey(c)) {
+                        types.put(c, types.get(c) + 1);
+                    } else {
+                        types.put(c, 1);
+                    }
+                }
+
+                if (types.size() == 1) {
+                    chests.add(new Chest(chests.size() + 1, types.keySet().iterator().next()));
+                } else {
+                    Chest chest = new Chest(chests.size() + 1, 'x');
+                    for (Map.Entry<Character, Integer> e : types.entrySet()) {
+                        chest.addTypeCount(e.getKey(), e.getValue());
+                    }
+                    chests.add(chest);
+                }
+            }
+        }
+
+        if (mAdapter == null) {
+            mAdapter = new ChestAdapter(mContext, chests, false);
+            mGridView.setAdapter(mAdapter);
+        } else {
+            mAdapter.updateChests(chests);
+        }
+
+        mGridView.smoothScrollToPosition(mChests.size() + 5);
+    }
+
+    private void loadProgress() {
+        if (mMatchPositions.size() == 1) {
+            Map.Entry<Integer, Integer> matchedEntry = mMatchPositions.iterator().next();
+            final Integer finalMatchedPosition = matchedEntry.getKey();
+            final Integer finalMatchedLength = matchedEntry.getValue();
+            mListener.onMatchPositionApply(finalMatchedPosition, finalMatchedLength);
         }
     }
 
-    private void checkMatched() {
+    private boolean getMatched() {
         final String chests = getChestSequence();
 
         ChestMatcher matcher = new ChestMatcher(getString(R.string.chest_loop));
 
-        SortedSet<Map.Entry<Integer, Integer>> matched = matcher.getMatchedPositions(chests, mFuzzy);
+        mMatchPositions = matcher.getMatchedPositions(chests).entrySet();
 
-        String matchedPosition = "";
-        if (matched.size() == 1) {
-            matchedPosition = matched.first().getKey().toString();
-            mApplyButton.setEnabled(true);
-
-            final Integer finalMatchedPosition = matched.first().getKey();
-            final Integer finalMatchedLength = matched.first().getValue();
-            mApplyButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    mListener.onMatchPositionApply(finalMatchedPosition, finalMatchedLength);
-                }
-            });
-
-        } else {
-            if (matched.size() > 0) {
-                int count = 0;
-                for (Map.Entry<Integer, Integer> e : matched) {
-                    if (e.getValue() < 5 || count > 8) {
-                        matchedPosition += "...";
-                        break;
-                    }
-                    count++;
-                    matchedPosition += e.getKey().toString() + " ";
-                }
-            }
-            mApplyButton.setEnabled(false);
+        String matchResult = getString(R.string.matched);
+        for (Map.Entry<Integer, Integer> e : mMatchPositions) {
+            matchResult += "  " + e.getKey().toString();
         }
 
-        mMatchedPosTextView.setText(matchedPosition);
+        Set<Integer> set = new HashSet<>();
+        for (Map.Entry<Integer, Integer> e : mMatchPositions) {
+            set.add(e.getKey() % SHORT_LOOP_LENGTH);
+        }
+
+        Log.i(TAG, matchResult);
+
+        if (set.size() == 1) {
+            mMatchedTextView.setText(matchResult);
+            Log.i(TAG, "Short loop @" + set.iterator().next().toString());
+            return true;
+        } else {
+            mMatchedTextView.setText("");
+            return false;
+        }
     }
 
     private String getChestSequence() {
@@ -366,20 +445,8 @@ public class GuiderFragment extends Fragment {
         return chests;
     }
 
-    private void toggleFuzzyMatch() {
-        MenuItem indexMenuItem = mMenu.findItem(R.id.action_fuzzy);
-        if (mFuzzy) {
-            mFuzzy = false;
-            indexMenuItem.setTitle(R.string.action_fuzzy_on);
-        } else {
-            mFuzzy = true;
-            indexMenuItem.setTitle(R.string.action_fuzzy_off);
-        }
-        checkMatched();
-    }
-
     private void clearAll() {
-        mAdapter.clear();
-        checkMatched();
+        mChests.clear();
+        loadViews();
     }
 }

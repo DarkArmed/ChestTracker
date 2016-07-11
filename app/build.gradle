@@ -8,8 +8,8 @@ android {
         applicationId "com.darkarmed.chesttrackerforclashroyale"
         minSdkVersion 18
         targetSdkVersion 23
-        versionCode 2
-        versionName "1.0.0"
+        versionCode 3
+        versionName "1.1.0"
     }
     buildTypes {
         release {
@@ -18,10 +18,10 @@ android {
         }
     }
     productFlavors {
-        dev{}
-        google{}
-        tencent{}
-        _360 {}
+        dev {}
+        google {}
+        tencent {}
+        qihu360 {}
         baidu {}
         xiaomi {}
         wandoujia {}

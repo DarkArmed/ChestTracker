@@ -51,4 +51,25 @@ public class ChestMatcher {
         return matched;
     }
 
+    public Map<Integer, Integer> getMatchedPositions(String chests) {
+        Map<Integer, Integer> matched = new TreeMap<>();
+        int chestsNum = chests.length();
+        if (chestsNum > 0) {
+            int matchLength = 3;
+            for (int pos = chestsNum - 1; pos < mLoopLength + chestsNum; ++pos) {
+                int i = 0;
+                for ( ; i < chestsNum && mLoop.charAt(pos - i) == chests.charAt(chestsNum - 1 - i); ++i);
+                if (i >= matchLength) {
+                    if (i > matchLength) {
+                        matched.clear();
+                        matchLength = i;
+                    }
+                    matched.put(pos % mLoopLength + 1, i);
+                }
+            }
+        }
+
+        return matched;
+    }
+
 }

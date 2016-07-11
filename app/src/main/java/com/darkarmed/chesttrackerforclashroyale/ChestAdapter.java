@@ -1,6 +1,7 @@
 package com.darkarmed.chesttrackerforclashroyale;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.graphics.Typeface;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -22,8 +23,8 @@ public class ChestAdapter extends BaseAdapter {
     private String mLoop;
     private int mLastOpened = 0;
     private final int BUFFER_LENGTH = 12;
-    private final int EXTEND_LENGTH = 40;
-    private final int LOOP_LENGTH = 240;
+    private final int SHORT_LOOP_LENGTH = 40;
+    private final int FULL_LOOP_LENGTH = 240;
 
     public ChestAdapter(Context context, List<Chest> chests, boolean showIndexes) {
         mContext = context;
@@ -55,8 +56,8 @@ public class ChestAdapter extends BaseAdapter {
         int current_size = mChests.size();
         int pos = getLastOpened();
         if (pos + BUFFER_LENGTH >= current_size) {
-            for (int i = current_size; i < current_size + EXTEND_LENGTH; ++i) {
-                mChests.add(new Chest(i % LOOP_LENGTH + 1, mLoop.charAt(i % LOOP_LENGTH)));
+            for (int i = current_size; i < current_size + SHORT_LOOP_LENGTH; ++i) {
+                mChests.add(new Chest(i % FULL_LOOP_LENGTH + 1, mLoop.charAt(i % FULL_LOOP_LENGTH)));
             }
             notifyDataSetChanged();
         }
@@ -116,6 +117,11 @@ public class ChestAdapter extends BaseAdapter {
         return pos;
     }
 
+    public void updateChests(List<Chest> chests) {
+        mChests = chests;
+        notifyDataSetChanged();
+    }
+
     public int getLastOpened() {
         return mLastOpened;
     }
@@ -154,14 +160,26 @@ public class ChestAdapter extends BaseAdapter {
             convertView = layoutInflater.inflate(
                     R.layout.view_chest, parent, false);
             holder = new ViewHolder();
-            holder.imageView = (ImageView) convertView.findViewById(R.id.chest_view);
-            holder.textView = (TextView) convertView.findViewById(R.id.chest_id);
+            holder.imageView = (ImageView) convertView.findViewById(R.id.chest_image);
+            holder.textView = (TextView) convertView.findViewById(R.id.chest_text);
             convertView.setTag(holder);
         } else {
             holder = (ViewHolder) convertView.getTag();
         }
 
         final Chest chest = (Chest) getItem(position);
+        Boolean matched = chest.getMatched();
+        if (matched != null) {
+            if (matched) {
+                holder.imageView.setBackgroundColor(
+                        mContext.getResources().getColor(R.color.colorBackgroundMatched));
+            } else {
+                holder.imageView.setBackgroundColor(
+                        mContext.getResources().getColor(R.color.colorBackgroundNotMatched));
+            }
+        } else {
+            holder.imageView.setBackgroundColor(Color.TRANSPARENT);
+        }
         loadImage(holder.imageView, chest);
         if (mShowIndexes) {
             holder.textView.setText(chest.getIndex().toString());

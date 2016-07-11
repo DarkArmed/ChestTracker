@@ -3,12 +3,6 @@
       xmlns:tools="http://schemas.android.com/tools"
       tools:context="course.examples.test.MainActivity">
     <item
-        android:id="@+id/action_fuzzy"
-        android:orderInCategory="200"
-        android:title="@string/action_indexes_hide"
-        app:showAsAction="never"/>
-
-    <item
         android:id="@+id/action_clear"
         android:orderInCategory="300"
         android:title="@string/action_clear"
